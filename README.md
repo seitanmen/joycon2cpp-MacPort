@@ -108,9 +108,9 @@ huge thanks to [@german77](https://github.com/german77) for providing me with th
 | `0x00` | 0x4  | Packet ID          | Sequence or timestamp        |
 | `0x04` | 0x4  | Buttons            | Button state bitmap          |
 | `0x08` | 0x3  | Left Stick         | 12-bit X/Y packed             |
-| `0x0B` | 0x3  | Right Stick        | Likely garbage on Left Joy-Con |
-| `0x0E` | 0x2  | Mouse X            | Unknown meaning               |
-| `0x10` | 0x2  | Mouse Y            | Unknown meaning               |
+| `0x0B` | 0x3  | Right Stick        | 12-bit X/Y packed   |
+| `0x0E` | 0x2  | Mouse X            |              |
+| `0x10` | 0x2  | Mouse Y            |                 |
 | `0x12` | 0x2  | Mouse Unk          | Possibly extra motion data    |
 | `0x14` | 0x2  | Mouse Distance     | Distance to IR/motion surface |
 | `0x16` | 0x2  | Magnetometer X     |                              |
