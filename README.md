@@ -9,11 +9,9 @@ A C++ executable that makes Switch 2 controllers into working PC controllers.
 This project is **Windows-only**, primarily because the `ViGEmBus Driver` (used for virtual controller output) is exclusive to Windows.  
 You're free to make your own macOS/Linux fork if you want.
 
-This is a full C++ rewrite of the main joycon2py project, made by me.
-This branch has a couple tricks that makes it better than the py version:
-- It has full gyro support
-- Full MOUSE support
-- Might have less lag as it talks directly to ViGEmBus
+I don't actually own a Pro Controller 2 or an NSO GC Controller, so their decoders might suck. Sorry! However, if you DO own these controllers, you can help out by:
+- Testing the program's decoders and see if both controllers work fine
+- Edit the code to make them better based on your own testing (if you do this, make a fork out of it and submit a pull request! I'd be glad to accept it, any kind of cool stuff that gets added i'll be a big fan of.)
 
 ---
 
