@@ -19,11 +19,10 @@ This branch has a couple tricks that makes it better than the py version:
 
 ## PROGRESS
 - Multiplayer (Complete, Working)
-- Single Decoder (Complete, needs slight Sideways mapping changes)
-- Dual Decoder (Complete, Working)
-- Pro Decoder (Complete, Working)
-- GC Decoder (Nothing yet)  
-
+- Single Joycons (Complete, needs slight Sideways mapping changes)
+- Dual Joycons (Complete, Working)
+- Pro Controller (Complete, Working)
+- NSO GC Controller (Nothing yet)
 - Gyro Support (Yes)
 - Mouse Support (Yeah, but the speed needs to be increased)
 
