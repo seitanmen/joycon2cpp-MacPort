@@ -22,7 +22,7 @@ This branch has a couple tricks that makes it better than the py version:
 - Single Joycons (Complete, needs slight Sideways mapping changes)
 - Dual Joycons (Complete, Working)
 - Pro Controller (Complete, Working)
-- NSO GC Controller (Nothing yet)
+- NSO GC Controller (In-Progress, prototype has been added)
 - Gyro Support (Yes)
 - Mouse Support (Yeah, but the speed needs to be increased)
 
