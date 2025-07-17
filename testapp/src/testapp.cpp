@@ -182,7 +182,8 @@ ConnectedJoyCon WaitForJoyCon(const std::wstring& prompt)
 enum ControllerType {
     SingleJoyCon = 1,
     DualJoyCon = 2,
-    ProController = 3
+    ProController = 3,
+    NSOGCController = 4
 };
 
 struct PlayerConfig {
@@ -234,9 +235,9 @@ int main()
 
         while (true) {
             std::wcout << L"Player " << (i + 1) << L":\n";
-            std::wcout << L"  What controller type? (1=Single JoyCon, 2=Dual JoyCon, 3=Pro Controller): ";
+            std::wcout << L"  What controller type? (1=Single JoyCon, 2=Dual JoyCon, 3=Pro Controller, 4=NSO GC Controller): ";
             std::getline(std::wcin, line);
-            if (line == L"1" || line == L"2" || line == L"3") {
+            if (line == L"1" || line == L"2" || line == L"3" || line == L"4") {
                 config.controllerType = static_cast<ControllerType>(std::stoi(std::string(line.begin(), line.end())));
                 break;
             }
@@ -464,6 +465,48 @@ int main()
 
             proPlayers.push_back({ proController, ds4_controller });
         }
+        else if (config.controllerType == NSOGCController) {
+            std::wcout << L"Please sync your NSO GameCube Controller now.\n";
+
+            ConnectedJoyCon gcController = WaitForJoyCon(L"Waiting for NSO GC Controller...");
+
+            PVIGEM_TARGET ds4_controller = vigem_target_ds4_alloc();
+            auto ret = vigem_target_add(vigem_client, ds4_controller);
+            if (!VIGEM_SUCCESS(ret)) {
+                std::wcerr << L"Failed to add DS4 controller target: 0x" << std::hex << ret << L"\n";
+                exit(1);
+            }
+
+            gcController.inputChar.ValueChanged([ds4_controller](GattCharacteristic const&, GattValueChangedEventArgs const& args) mutable {
+                auto reader = DataReader::FromBuffer(args.CharacteristicValue());
+                std::vector<uint8_t> buffer(reader.UnconsumedBufferLength());
+                reader.ReadBytes(buffer);
+
+                DS4_REPORT_EX report = GenerateNSOGCReport(buffer);
+
+                auto ret = vigem_target_ds4_update_ex(vigem_client, ds4_controller, report);
+                if (!VIGEM_SUCCESS(ret)) {
+                    std::wcerr << L"Failed to update DS4 EX report: 0x" << std::hex << ret << L"\n";
+                }
+                });
+
+            auto status = gcController.inputChar.WriteClientCharacteristicConfigurationDescriptorAsync(
+                GattClientCharacteristicConfigurationDescriptorValue::Notify).get();
+
+            if (gcController.writeChar)
+                SendCustomCommands(gcController.writeChar); // Optional, only if NSO GC expects init commands
+
+            if (status == GattCommunicationStatus::Success)
+                std::wcout << L"NSO GC Controller notifications enabled.\n";
+            else
+                std::wcout << L"Failed to enable NSO GC Controller notifications.\n";
+
+            std::wcout << L"Press Enter to continue...\n";
+            std::wstring dummy;
+            std::getline(std::wcin, dummy);
+
+            proPlayers.push_back({ gcController, ds4_controller }); // reuse ProControllerPlayer struct
+}
     }
 
     std::wcout << L"All players connected. Press Enter to exit...\n";
