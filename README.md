@@ -13,6 +13,8 @@ I don't actually own a Pro Controller 2 or an NSO GC Controller, so their decode
 - Testing the program's decoders and see if both controllers work fine
 - Edit the code to make them better based on your own testing (if you do this, make a fork out of it and submit a pull request! I'd be glad to accept it, any kind of cool stuff that gets added i'll be a big fan of.)
 
+For some people, theres been reports of delay when using the program. Me personally, while my JoyCon 2 sticks report 50-60ms in a polling rate tester, their feel and delay is.. fine. If you think you have a solution to this, feel free to make a pull request of it. All I wanna say is it's something related to either your PC or your controller.
+
 ---
 
 ## PROGRESS
