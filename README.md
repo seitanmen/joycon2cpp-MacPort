@@ -33,7 +33,7 @@ This branch has a couple tricks that makes it better than the py version:
 ---
 
 ## How do I use it?
-- Download the exe in the source code and open it
+- Download the exe in the source code and open it, or optionally build the source code and open the created exe file
 - Pick your amount of players
 - Pick everyone's controller
 - If using a singular joycon you'll be asked if its Left or Right
