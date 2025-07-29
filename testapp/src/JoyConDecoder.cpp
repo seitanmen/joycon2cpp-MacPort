@@ -152,7 +152,6 @@ DS4_REPORT_EX GenerateDS4Report(const std::vector<uint8_t>& buffer, JoyConSide s
     report.Report.bTouchPacketsN = 1;
     report.Report.sCurrentTouch.bPacketCounter++;
     EncodeDS4Touch(report.Report.sCurrentTouch, 1, touchX, touchY);
-    report.Report.bSpecial |= DS4_SPECIAL_BUTTON_TOUCHPAD;
 
     BYTE leftTrigger = 0, rightTrigger = 0;
     bool leftShoulder = false, rightShoulder = false;
@@ -215,8 +214,6 @@ DS4_REPORT_EX GenerateDualJoyConDS4Report(const std::vector<uint8_t>& leftBuffer
     report.Report.sCurrentTouch.bTouchData2[0] = x2 & 0xFF;
     report.Report.sCurrentTouch.bTouchData2[1] = ((x2 >> 8) & 0x0F) | ((y2 & 0x0F) << 4);
     report.Report.sCurrentTouch.bTouchData2[2] = (y2 >> 4) & 0xFF;
-
-    report.Report.bSpecial |= DS4_SPECIAL_BUTTON_TOUCHPAD;
 
     uint32_t leftState = (leftBuffer[4] << 16) | (leftBuffer[5] << 8) | leftBuffer[6];
     uint32_t rightState = (rightBuffer[3] << 16) | (rightBuffer[4] << 8) | rightBuffer[5];
@@ -366,3 +363,70 @@ DS4_REPORT_EX GenerateProControllerReport(const std::vector<uint8_t>& buffer)
 
     return report;
 }
+
+DS4_REPORT_EX GenerateNSOGCReport(const std::vector<uint8_t>& buffer)
+{
+    DS4_REPORT_EX report{};
+    DS4_REPORT_INIT(reinterpret_cast<PDS4_REPORT>(&report.Report));
+
+    if (buffer.size() < 0x3C) {
+        return report;
+    }
+
+    uint64_t state = 0;
+    for (int i = 3; i <= 8; ++i) {
+        state = (state << 8) | buffer[i];
+    }
+
+    if (state & BUTTON_A_MASK)        report.Report.wButtons |= DS4_BUTTON_CIRCLE;
+    if (state & BUTTON_B_MASK)        report.Report.wButtons |= DS4_BUTTON_TRIANGLE;
+    if (state & BUTTON_X_MASK)        report.Report.wButtons |= DS4_BUTTON_CROSS;
+    if (state & BUTTON_Y_MASK)        report.Report.wButtons |= DS4_BUTTON_SQUARE;
+    if (state & BUTTON_L_SHOULDER)    report.Report.wButtons |= DS4_BUTTON_SHOULDER_LEFT;
+    if (state & BUTTON_R_SHOULDER)    report.Report.wButtons |= DS4_BUTTON_SHOULDER_RIGHT;
+    if (state & BUTTON_L_THUMB)       report.Report.wButtons |= DS4_BUTTON_THUMB_LEFT;
+    if (state & BUTTON_R_THUMB)       report.Report.wButtons |= DS4_BUTTON_THUMB_RIGHT;
+    if (state & BUTTON_BACK)          report.Report.wButtons |= DS4_BUTTON_SHARE;
+    if (state & BUTTON_START)         report.Report.wButtons |= DS4_BUTTON_OPTIONS;
+    if (state & BUTTON_GUIDE)         report.Report.bSpecial |= DS4_SPECIAL_BUTTON_PS;
+
+    bool up = (state & BUTTON_DPAD_UP) != 0;
+    bool down = (state & BUTTON_DPAD_DOWN) != 0;
+    bool left = (state & BUTTON_DPAD_LEFT) != 0;
+    bool right = (state & BUTTON_DPAD_RIGHT) != 0;
+
+    uint8_t dpad = DS4_BUTTON_DPAD_NONE;
+    if (up && left) dpad = DS4_BUTTON_DPAD_NORTHWEST;
+    else if (up && right) dpad = DS4_BUTTON_DPAD_NORTHEAST;
+    else if (down && left) dpad = DS4_BUTTON_DPAD_SOUTHWEST;
+    else if (down && right) dpad = DS4_BUTTON_DPAD_SOUTHEAST;
+    else if (up) dpad = DS4_BUTTON_DPAD_NORTH;
+    else if (down) dpad = DS4_BUTTON_DPAD_SOUTH;
+    else if (left) dpad = DS4_BUTTON_DPAD_WEST;
+    else if (right) dpad = DS4_BUTTON_DPAD_EAST;
+
+    DS4_SET_DPAD(reinterpret_cast<PDS4_REPORT>(&report.Report), static_cast<DS4_DPAD_DIRECTIONS>(dpad));
+
+    report.Report.bTriggerL = (state & TRIGGER_LT_MASK) ? 255 : 0;
+    report.Report.bTriggerR = (state & TRIGGER_RT_MASK) ? 255 : 0;
+
+    auto [lx, ly] = decode_pro_joystick(&buffer[10]);
+    ly = -ly;
+    auto [rx, ry] = decode_pro_joystick(&buffer[13]);
+    ry = -ry;
+
+    report.Report.bThumbLX = static_cast<uint8_t>((lx / 32767.0f) * 127 + 128);
+    report.Report.bThumbLY = static_cast<uint8_t>((ly / 32767.0f) * 127 + 128);
+    report.Report.bThumbRX = static_cast<uint8_t>((rx / 32767.0f) * 127 + 128);
+    report.Report.bThumbRY = static_cast<uint8_t>((ry / 32767.0f) * 127 + 128);
+
+    report.Report.wAccelX = to_signed_16(buffer[0x30], buffer[0x31]);
+    report.Report.wAccelY = to_signed_16(buffer[0x32], buffer[0x33]);
+    report.Report.wAccelZ = to_signed_16(buffer[0x34], buffer[0x35]);
+    report.Report.wGyroX = to_signed_16(buffer[0x36], buffer[0x37]);
+    report.Report.wGyroY = to_signed_16(buffer[0x38], buffer[0x39]);
+    report.Report.wGyroZ = to_signed_16(buffer[0x3A], buffer[0x3B]);
+
+    return report;
+}
+
