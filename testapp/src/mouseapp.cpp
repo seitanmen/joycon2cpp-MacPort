@@ -218,6 +218,15 @@ void OperateMouse(const DS4_REPORT_EX& report)
         prevMouseState = {x, y};
     }
 
+    // マウススクロールの操作
+    {
+        INPUT input{};
+        input.type = INPUT_MOUSE;
+        input.mi.mouseData = 128 - static_cast<int>(report.Report.bThumbLY);
+        input.mi.dwFlags = MOUSEEVENTF_WHEEL;
+        inputs.push_back(input);
+    }
+
 
     if (!inputs.empty())
     {
