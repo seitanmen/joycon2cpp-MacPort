@@ -162,6 +162,7 @@ void PrintDS4ReportState(const DS4_REPORT_EX& report) {
 
 static bool prevLeftButtonState = false;
 static bool prevRightButtonState = false;
+static bool prevMiddleButtonState = false;
 static std::pair<uint16_t, uint16_t> prevMouseState = {-1, -1};
 
 void OperateMouse(const DS4_REPORT_EX& report)
@@ -190,7 +191,18 @@ void OperateMouse(const DS4_REPORT_EX& report)
         prevRightButtonState = currentRightButtonState;
     }
 
-    
+    // マウスの中ボタンの状態を確認 (Joy-Conのアナログスティックボタン)
+    bool currentMiddleButtonState = (report.Report.wButtons & DS4_BUTTON_THUMB_LEFT);
+    if (currentMiddleButtonState != prevMiddleButtonState)
+    {
+        INPUT input{};
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = currentMiddleButtonState ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP;
+        inputs.push_back(input);
+        prevMiddleButtonState = currentMiddleButtonState;
+    }
+
+    // マウスカーソルの操作
     uint16_t x = report.Report.sCurrentTouch.bTouchData1[0] | ((report.Report.sCurrentTouch.bTouchData1[1] & 0x0F) << 8);
     uint16_t y = ((report.Report.sCurrentTouch.bTouchData1[1] & 0xF0) >> 4) | (report.Report.sCurrentTouch.bTouchData1[2] << 4);
     if(prevMouseState.first == static_cast<uint16_t>(-1) && prevMouseState.second == static_cast<uint16_t>(-1))
