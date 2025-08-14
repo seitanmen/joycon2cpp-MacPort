@@ -16,6 +16,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <memory>
+#include <iomanip>
 
 #include "JoyConDecoder.h"
 
@@ -82,6 +83,79 @@ void PrintRawNotification(const std::vector<uint8_t>& buffer)
         printf("%02X ", b);
     }
     std::cout << std::endl;
+}
+
+/**
+ * @brief DS4レポートの状態をコンソールに表示
+ * @param report 表示するDS4レポート
+ * @-
+ */
+void PrintDS4ReportState(const DS4_REPORT_EX& report) {
+    // カーソルを行頭に戻すことで、出力を同じ行に上書きする
+    std::wcout << L"\r";
+
+    // ボタンの状態
+    std::wcout << L"Buttons: ";
+
+    if (report.Report.wButtons & DS4_BUTTON_SQUARE)         std::wcout << L"Y ";
+    if (report.Report.wButtons & DS4_BUTTON_CROSS)          std::wcout << L"B ";
+    if (report.Report.wButtons & DS4_BUTTON_CIRCLE)         std::wcout << L"A ";
+    if (report.Report.wButtons & DS4_BUTTON_TRIANGLE)       std::wcout << L"X ";
+    if (report.Report.wButtons & DS4_BUTTON_SHOULDER_LEFT)  std::wcout << L"L1 ";
+    if (report.Report.wButtons & DS4_BUTTON_SHOULDER_RIGHT) std::wcout << L"R1 ";
+    if (report.Report.wButtons & DS4_BUTTON_TRIGGER_LEFT)   std::wcout << L"L2 ";
+    if (report.Report.wButtons & DS4_BUTTON_TRIGGER_RIGHT)  std::wcout << L"R2 ";
+    if (report.Report.wButtons & DS4_BUTTON_SHARE)          std::wcout << L"SHARE ";
+    if (report.Report.wButtons & DS4_BUTTON_OPTIONS)        std::wcout << L"OPTIONS ";
+    if (report.Report.wButtons & DS4_BUTTON_THUMB_LEFT)     std::wcout << L"L3 ";
+    if (report.Report.wButtons & DS4_BUTTON_THUMB_RIGHT)    std::wcout << L"R3 ";
+    if (report.Report.bSpecial & DS4_SPECIAL_BUTTON_PS)     std::wcout << L"PS ";
+
+    // 十字キーの状態
+    switch (report.Report.wButtons & 0xF) {
+        case DS4_BUTTON_DPAD_NORTHWEST: std::wcout << L"NW "; break;
+        case DS4_BUTTON_DPAD_NORTHEAST: std::wcout << L"NE "; break;
+        case DS4_BUTTON_DPAD_SOUTHWEST: std::wcout << L"SW "; break;
+        case DS4_BUTTON_DPAD_SOUTHEAST: std::wcout << L"SH "; break;
+        case DS4_BUTTON_DPAD_NORTH:     std::wcout << L"N "; break;
+        case DS4_BUTTON_DPAD_SOUTH:     std::wcout << L"S "; break;
+        case DS4_BUTTON_DPAD_WEST:      std::wcout << L"W "; break;
+        case DS4_BUTTON_DPAD_EAST:      std::wcout << L"E "; break;
+        default:                        std::wcout << L"  "; break;
+    }
+
+    std::wcout << report.Report.wButtons << L"  ";
+
+    // アナログスティックの値 (0-255)
+    std::wcout << L"| LX: " << std::setw(3) << static_cast<int>(report.Report.bThumbLX)
+               << L" LY: " << std::setw(3) << static_cast<int>(report.Report.bThumbLY)
+               << L" | RX: " << std::setw(3) << static_cast<int>(report.Report.bThumbRX)
+               << L" RY: " << std::setw(3) << static_cast<int>(report.Report.bThumbRY);
+
+    // トリガーの値 (0-255)
+    std::wcout << L" | L2: " << std::setw(3) << static_cast<int>(report.Report.bTriggerL)
+               << L" R2: " << std::setw(3) << static_cast<int>(report.Report.bTriggerR);
+
+    // タッチパッド（マウス）の座標
+    if (report.Report.bTouchPacketsN > 0) {
+        // 1点目のタッチ情報
+        uint16_t x1 = report.Report.sCurrentTouch.bTouchData1[0] | ((report.Report.sCurrentTouch.bTouchData1[1] & 0x0F) << 8);
+        uint16_t y1 = ((report.Report.sCurrentTouch.bTouchData1[1] & 0xF0) >> 4) | (report.Report.sCurrentTouch.bTouchData1[2] << 4);
+        // bIsUpTrackingNum1の最上位ビットが0のとき、タッチされている
+        if ((report.Report.sCurrentTouch.bIsUpTrackingNum1 & 0x80) == 0) {
+            std::wcout << L" | Touch1: (" << std::setw(4) << x1 << L", " << std::setw(4) << y1 << L")";
+        }
+
+        // 2点目のタッチ情報 (Dual Joy-Con用)
+        uint16_t x2 = report.Report.sCurrentTouch.bTouchData2[0] | ((report.Report.sCurrentTouch.bTouchData2[1] & 0x0F) << 8);
+        uint16_t y2 = ((report.Report.sCurrentTouch.bTouchData2[1] & 0xF0) >> 4) | (report.Report.sCurrentTouch.bTouchData2[2] << 4);
+        // bIsUpTrackingNum2の最上位ビットが0のとき、タッチされている
+        if ((report.Report.sCurrentTouch.bIsUpTrackingNum2 & 0x80) == 0) {
+            std::wcout << L" | Touch2: (" << std::setw(4) << x2 << L", " << std::setw(4) << y2 << L")";
+        }
+    }
+
+    std::wcout << L"          ";
 }
 
 /**
@@ -289,6 +363,8 @@ int main()
     std::wcin >> numPlayers;
     std::wcin.ignore(); // 改行文字をバッファからクリア
 
+    bool is_debug; // デバッグ表示のON/OFF
+
     std::vector<PlayerConfig> playerConfigs;
 
     for (int i = 0; i < numPlayers; ++i) {
@@ -332,6 +408,14 @@ int main()
             config.joyconOrientation = JoyConOrientation::Upright;
         }
 
+        while(true){
+            std::wcout << L"  Debug Mode? (y/n): ";
+            std::getline(std::wcin, line);
+            if(line == L"n" || line == L"N")      {is_debug = false; break;}
+            else if(line == L"y" || line == L"Y") {is_debug = true;  break;}
+            else std::wcout << "Invalid input. Please enter y or n.\n";
+        }
+
         playerConfigs.push_back(config);
     }
 
@@ -368,7 +452,7 @@ int main()
             auto& player = singlePlayers.back();
 
             // Joy-Conからの入力があったときのイベントハンドラを設定
-            player.joycon.inputChar.ValueChanged([joyconSide = player.side, joyconOrientation = player.orientation, &player](GattCharacteristic const&, GattValueChangedEventArgs const& args)
+            player.joycon.inputChar.ValueChanged([joyconSide = player.side, joyconOrientation = player.orientation, &player, &is_debug](GattCharacteristic const&, GattValueChangedEventArgs const& args)
                 {
                     // 生データを読み取り
                     auto reader = DataReader::FromBuffer(args.CharacteristicValue());
@@ -377,6 +461,9 @@ int main()
 
                     // レポートを生成
                     DS4_REPORT_EX report = GenerateDS4Report(buffer, joyconSide, joyconOrientation);
+
+                    // 状態をコンソール出力
+                    if(is_debug) PrintDS4ReportState(report);
 
                     // 仮想コントローラーの状態を更新
                     auto ret = vigem_target_ds4_update_ex(vigem_client, player.ds4Controller, report);
@@ -466,7 +553,7 @@ int main()
 
             // 状態更新用スレッド
             // 左右のデータを同期してレポートを生成・送信
-            dualPlayer->updateThread = std::thread([dualPlayerPtr = dualPlayer.get(), &leftBufferAtomic, &rightBufferAtomic]()
+            dualPlayer->updateThread = std::thread([dualPlayerPtr = dualPlayer.get(), &leftBufferAtomic, &rightBufferAtomic, &is_debug]()
                 {
                     while (dualPlayerPtr->running.load(std::memory_order_acquire))
                     {
@@ -483,6 +570,9 @@ int main()
 
                         // 結合レポートを生成
                         DS4_REPORT_EX report = GenerateDualJoyConDS4Report(*leftBuf, *rightBuf);
+
+                        // 状態をコンソール出力
+                        if(is_debug) PrintDS4ReportState(report);
 
                         // 仮想コントローラーを更新
                         auto ret = vigem_target_ds4_update_ex(vigem_client, dualPlayerPtr->ds4Controller, report);
@@ -517,7 +607,7 @@ int main()
             }
 
             // イベントハンドラ
-            proController.inputChar.ValueChanged([ds4_controller](GattCharacteristic const&, GattValueChangedEventArgs const& args) mutable
+            proController.inputChar.ValueChanged([ds4_controller, &is_debug](GattCharacteristic const&, GattValueChangedEventArgs const& args) mutable
                 {
                     auto reader = DataReader::FromBuffer(args.CharacteristicValue());
                     std::vector<uint8_t> buffer(reader.UnconsumedBufferLength());
@@ -525,6 +615,9 @@ int main()
 
                     // Proコン用のレポートを生成
                     DS4_REPORT_EX report = GenerateProControllerReport(buffer);
+                    
+                    // 状態をコンソール出力
+                    if(is_debug) PrintDS4ReportState(report);
 
                     auto ret = vigem_target_ds4_update_ex(vigem_client, ds4_controller, report);
                     if (!VIGEM_SUCCESS(ret)) {
@@ -564,13 +657,16 @@ int main()
             }
 
             // イベントハンドラ
-            gcController.inputChar.ValueChanged([ds4_controller](GattCharacteristic const&, GattValueChangedEventArgs const& args) mutable {
+            gcController.inputChar.ValueChanged([ds4_controller, &is_debug](GattCharacteristic const&, GattValueChangedEventArgs const& args) mutable {
                 auto reader = DataReader::FromBuffer(args.CharacteristicValue());
                 std::vector<uint8_t> buffer(reader.UnconsumedBufferLength());
                 reader.ReadBytes(buffer);
 
                 // NSO GCコン用のレポートを生成
                 DS4_REPORT_EX report = GenerateNSOGCReport(buffer);
+
+                // 状態をコンソール出力
+                if(is_debug) PrintDS4ReportState(report);
 
                 auto ret = vigem_target_ds4_update_ex(vigem_client, ds4_controller, report);
                 if (!VIGEM_SUCCESS(ret)) {
