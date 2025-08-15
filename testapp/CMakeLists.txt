@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(testapp LANGUAGES CXX)
+project(mouseapp LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,14 +13,16 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/include
 )
 
-file(GLOB_RECURSE SRC_FILES
-  src/*.cpp
+# Explicitly list source files to build mouseapp.exe
+set(SRC_FILES
+  src/mouseapp.cpp
+  src/JoyConDecoder.cpp
 )
 
-add_executable(testapp ${SRC_FILES})
+add_executable(mouseapp ${SRC_FILES})
 
-target_link_directories(testapp PRIVATE ${CMAKE_SOURCE_DIR}/lib)
-target_link_libraries(testapp
+target_link_directories(mouseapp PRIVATE ${CMAKE_SOURCE_DIR}/lib)
+target_link_libraries(mouseapp
     PRIVATE
         setupapi
         hid
@@ -29,7 +31,7 @@ target_link_libraries(testapp
 )
 
 if(MSVC)
-  target_compile_options(testapp PRIVATE /W3 /permissive-)
+  target_compile_options(mouseapp PRIVATE /W3 /permissive-)
 else()
-  target_compile_options(testapp PRIVATE -Wall -Wextra -pedantic)
+  target_compile_options(mouseapp PRIVATE -Wall -Wextra -pedantic)
 endif()
