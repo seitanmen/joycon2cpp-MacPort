@@ -18,11 +18,43 @@
 #include <memory>
 #include <iomanip>
 #include <array>
+#include <optional>
+#include <chrono>
+#include <fstream>
+#include <string>
 
 #include "JoyConDecoder.h"
 
 #include <ViGEm/Client.h>  // ViGEm (Virtual Gamepad Emulation Framework) クライアント
 #include <ViGEm/Common.h>  // ViGEm の共通定義
+
+// マウス感度のグローバル変数
+double mouse_sensitivity = 1.0;
+
+/**
+ * @brief mouse_sensitivity.txt からマウス感度を読み込む
+ */
+void LoadMouseSensitivity() {
+    std::ifstream ifs("mouse_sensitivity.txt");
+    if (ifs.is_open()) {
+        std::string line;
+        if (std::getline(ifs, line)) {
+            try {
+                mouse_sensitivity = std::stod(line);
+                std::wcout << L"Mouse sensitivity set to: " << mouse_sensitivity << std::endl;
+            }
+            catch (const std::invalid_argument&) {
+                std::wcerr << L"Invalid format in mouse_sensitivity.txt. Using default value 1.0." << std::endl;
+            }
+            catch (const std::out_of_range&) {
+                std::wcerr << L"Value in mouse_sensitivity.txt is out of range. Using default value 1.0." << std::endl;
+            }
+        }
+    }
+    else {
+        std::wcout << L"mouse_sensitivity.txt not found. Using default sensitivity 1.0." << std::endl;
+    }
+}
 
 using namespace winrt;
 using namespace Windows::Devices::Bluetooth;
@@ -163,10 +195,16 @@ void PrintDS4ReportState(const DS4_REPORT_EX& report) {
 static bool prevLeftButtonState = false;
 static bool prevRightButtonState = false;
 static bool prevMiddleButtonState = false;
-static std::pair<uint16_t, uint16_t> prevMouseState = {-1, -1};
+static std::optional<std::pair<uint16_t, uint16_t>> prevMouseState = std::nullopt;
 
 void OperateMouse(const DS4_REPORT_EX& report)
 {
+    static auto last_call_time = std::chrono::system_clock::now();
+    auto now = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call_time).count();
+    std::wcout << L"\r[DEBUG] OperateMouse called after " << std::setw(4) << duration << L" ms. ";
+    last_call_time = now;
+
     std::vector<INPUT> inputs;
 
     // マウスの左ボタンの状態を確認 (Joy-ConのZL)
@@ -205,18 +243,18 @@ void OperateMouse(const DS4_REPORT_EX& report)
     // マウスカーソルの操作
     uint16_t x = report.Report.sCurrentTouch.bTouchData1[0] | ((report.Report.sCurrentTouch.bTouchData1[1] & 0x0F) << 8);
     uint16_t y = ((report.Report.sCurrentTouch.bTouchData1[1] & 0xF0) >> 4) | (report.Report.sCurrentTouch.bTouchData1[2] << 4);
-    if(prevMouseState.first == static_cast<uint16_t>(-1) && prevMouseState.second == static_cast<uint16_t>(-1))
-        prevMouseState = {x, y};
-    else
+    if(prevMouseState)
     {
         INPUT input{};
         input.type = INPUT_MOUSE;
-        input.mi.dx = static_cast<LONG>(x - prevMouseState.first);
-        input.mi.dy = static_cast<LONG>(prevMouseState.second - y);
+        input.mi.dx = static_cast<LONG>((x - prevMouseState.value().first) * mouse_sensitivity);
+        input.mi.dy = static_cast<LONG>((prevMouseState.value().second - y) * mouse_sensitivity);
         input.mi.dwFlags = MOUSEEVENTF_MOVE;
         inputs.push_back(input);
         prevMouseState = {x, y};
     }
+    else
+        prevMouseState = {x, y};
 
     // マウススクロールの操作
     {
@@ -413,8 +451,8 @@ struct SingleJoyConPlayer {
  */
 int main()
 {
-
-
+    // マウス感度をファイルから読み込み
+    LoadMouseSensitivity();
 
     // WinRT (COM) を使用するためにアパートメントを初期化
     init_apartment();
@@ -447,7 +485,7 @@ int main()
             DS4_REPORT_EX report = GenerateDS4Report(buffer, joyconSide, joyconOrientation);
 
             // 状態をコンソール出力
-            PrintDS4ReportState(report);
+            // PrintDS4ReportState(report);
 
             // マウス操作
             OperateMouse(report);
