@@ -197,7 +197,7 @@ static bool prevRightButtonState = false;
 static bool prevMiddleButtonState = false;
 static std::optional<std::pair<uint16_t, uint16_t>> prevMouseState = std::nullopt;
 
-void OperateMouse(const DS4_REPORT_EX& report)
+void OperateMouse(const DS4_REPORT_EX& report, const JoyConSide& joyconSide)
 {
     static auto last_call_time = std::chrono::system_clock::now();
     auto now = std::chrono::system_clock::now();
@@ -208,7 +208,8 @@ void OperateMouse(const DS4_REPORT_EX& report)
     std::vector<INPUT> inputs;
 
     // マウスの左ボタンの状態を確認 (Joy-ConのZL)
-    bool currentLeftButtonState = (report.Report.wButtons & DS4_BUTTON_TRIGGER_LEFT);
+    uint16_t leftButtonMask = joyconSide == JoyConSide::Left ? DS4_BUTTON_TRIGGER_LEFT : DS4_BUTTON_TRIGGER_RIGHT;
+    bool currentLeftButtonState = (report.Report.wButtons & leftButtonMask);
     if (currentLeftButtonState != prevLeftButtonState)
     {
         INPUT input{};
@@ -219,7 +220,8 @@ void OperateMouse(const DS4_REPORT_EX& report)
     }
 
     // マウスの右ボタンの状態を確認 (Joy-ConのL)
-    bool currentRightButtonState = (report.Report.wButtons & DS4_BUTTON_SHOULDER_LEFT);
+    uint16_t rightButtonMask = joyconSide == JoyConSide::Left ? DS4_BUTTON_SHOULDER_LEFT: DS4_BUTTON_SHOULDER_RIGHT;
+    bool currentRightButtonState = (report.Report.wButtons & rightButtonMask);
     if (currentRightButtonState != prevRightButtonState)
     {
         INPUT input{};
@@ -230,7 +232,8 @@ void OperateMouse(const DS4_REPORT_EX& report)
     }
 
     // マウスの中ボタンの状態を確認 (Joy-Conのアナログスティックボタン)
-    bool currentMiddleButtonState = (report.Report.wButtons & DS4_BUTTON_THUMB_LEFT);
+    uint16_t middleButtonMask = joyconSide == JoyConSide::Left ? DS4_BUTTON_THUMB_LEFT: DS4_BUTTON_THUMB_RIGHT;
+    bool currentMiddleButtonState = (report.Report.wButtons & middleButtonMask);
     if (currentMiddleButtonState != prevMiddleButtonState)
     {
         INPUT input{};
@@ -459,8 +462,21 @@ int main()
     // ViGEmを初期化
     InitializeViGEm();
 
-    std::wcout << L"Please sync your single LEFT Joy-Con.\n";
-    ConnectedJoyCon cj = WaitForJoyCon(L"Waiting for LEFt Joy-Con...");
+    // L/Rの選択
+    std::wstring line;
+    JoyConSide joyconSide;
+    while (true) {
+        std::wcout << L"  Which side? (L=Left, R=Right): ";
+        std::getline(std::wcin, line);
+        if (line == L"L" || line == L"R" || line == L"l" || line == L"r") {
+            joyconSide = (line == L"L" || line == L"l") ? JoyConSide::Left : JoyConSide::Right;
+            break;
+        }
+        std::wcout << L"Invalid input. Please enter L or R.\n";
+    }
+    std::wstring sideStr = (joyconSide == JoyConSide::Left) ? L"Left" : L"Right";
+    std::wcout << L"Please sync your single " + sideStr + L" Joy-Con.\n";
+    ConnectedJoyCon cj = WaitForJoyCon(L"Waiting for " + sideStr + L" Joy-Con...");
 
     // 仮想DS4コントローラーを作成
     PVIGEM_TARGET ds4_controller = vigem_target_ds4_alloc();
@@ -471,7 +487,7 @@ int main()
         exit(1);
     }
 
-    SingleJoyConPlayer player{cj, ds4_controller, JoyConSide::Left, JoyConOrientation::Upright};
+    SingleJoyConPlayer player{cj, ds4_controller, joyconSide, JoyConOrientation::Upright};
 
     // Joy-Conからの入力があったときのイベントハンドラを設定
     player.joycon.inputChar.ValueChanged([joyconSide = player.side, joyconOrientation = player.orientation, &player](GattCharacteristic const&, GattValueChangedEventArgs const& args)
@@ -488,7 +504,7 @@ int main()
             // PrintDS4ReportState(report);
 
             // マウス操作
-            OperateMouse(report);
+            OperateMouse(report, joyconSide);
 
             // 仮想コントローラーの状態を更新
             auto ret = vigem_target_ds4_update_ex(vigem_client, player.ds4Controller, report);
