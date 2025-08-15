@@ -195,6 +195,8 @@ void PrintDS4ReportState(const DS4_REPORT_EX& report) {
 static bool prevLeftButtonState = false;
 static bool prevRightButtonState = false;
 static bool prevMiddleButtonState = false;
+static bool prevXButton1State = false;
+static bool prevXButton2State = false;
 static std::optional<std::pair<uint16_t, uint16_t>> prevMouseState = std::nullopt;
 
 void OperateMouse(const DS4_REPORT_EX& report, const JoyConSide& joyconSide)
@@ -241,6 +243,38 @@ void OperateMouse(const DS4_REPORT_EX& report, const JoyConSide& joyconSide)
         input.mi.dwFlags = currentMiddleButtonState ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP;
         inputs.push_back(input);
         prevMiddleButtonState = currentMiddleButtonState;
+    }
+
+    // マウスの進むボタンの状態を確認
+    bool currentXButton1State;
+    if(joyconSide == JoyConSide::Left)
+        currentXButton1State = ((report.Report.wButtons & 0xF)== DS4_BUTTON_DPAD_SOUTH);
+    else
+        currentXButton1State = (report.Report.wButtons & DS4_BUTTON_CROSS);
+    if (currentXButton1State != prevXButton1State)
+    {
+        INPUT input{};
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = currentXButton1State ? MOUSEEVENTF_XDOWN : MOUSEEVENTF_XUP;
+        input.mi.mouseData = XBUTTON1;
+        inputs.push_back(input);
+        prevXButton1State = currentXButton1State;
+    }
+
+    // マウスの戻るボタンの状態を確認
+    bool currentXButton2State;
+    if(joyconSide == JoyConSide::Left)
+        currentXButton2State = ((report.Report.wButtons & 0xF)== DS4_BUTTON_DPAD_NORTH);
+    else
+        currentXButton2State = (report.Report.wButtons & DS4_BUTTON_TRIANGLE);
+    if (currentXButton2State != prevXButton2State)
+    {
+        INPUT input{};
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = currentXButton2State ? MOUSEEVENTF_XDOWN : MOUSEEVENTF_XUP;
+        input.mi.mouseData = XBUTTON2;
+        inputs.push_back(input);
+        prevXButton2State = currentXButton2State;
     }
 
     // マウスカーソルの操作
