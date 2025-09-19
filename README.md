@@ -1,3 +1,14 @@
+元のjoycon2cppをMacで使用可能にするという学習のためのリポジトリです。
+ほとんどのコードがWindowsとLinuxとの互換性がないため、
+元のプロジェクトへ影響がないようリポジトリを以下に変更しました。
+ここには何もコミットしていません。
+
+This repository is for learning how to make the original joycon2cpp usable on Mac. 
+Since most of the code is incompatible with Windows and Linux
+I have changed the repository as follows to avoid affecting the original project.
+Nothing has been committed here.
+
+
 # joycon2cpp
 
 A C++ executable that makes Switch 2 controllers into working PC controllers.
