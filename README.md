@@ -8,6 +8,7 @@ Since most of the code is incompatible with Windows and Linux
 I have changed the repository as follows to avoid affecting the original project.
 Nothing has been committed here.
 
+** https://github.com/seitanmen/Joycon2forMac/ **
 
 # joycon2cpp
 
